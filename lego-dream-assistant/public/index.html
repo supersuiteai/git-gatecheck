@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffcf1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Lego Dream Assistant</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='12' width='26' height='16' rx='3' fill='%23d3232b'/%3E%3Crect x='7' y='6' width='7' height='7' rx='2' fill='%23d3232b'/%3E%3Crect x='18' y='6' width='7' height='7' rx='2' fill='%23d3232b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <!-- Home: photo + wish -->
+  <main id="home" class="screen">
+    <header class="brand">
+      <span class="logo" aria-hidden="true"><i></i><i></i></span>
+      <h1>Lego Dream Assistant</h1>
+    </header>
+    <p id="demo-banner" class="banner" hidden>Demo mode: sample builds only. A grown-up can add an API key for real ones.</p>
+
+    <section class="card">
+      <h2><b class="num">1</b> Snap your bricks</h2>
+      <div id="photo-empty">
+        <p class="hint">Spread your bricks out flat so I can see them all.</p>
+        <div class="row">
+          <label class="btn blue big">
+            <input id="camera" type="file" accept="image/*" capture="environment" hidden>
+            📷 Take a photo
+          </label>
+          <label class="btn ghost">
+            <input id="gallery" type="file" accept="image/*" hidden>
+            Pick a photo
+          </label>
+        </div>
+      </div>
+      <div id="photo-full" hidden>
+        <img id="preview" alt="Your bricks">
+        <button id="retake" class="btn ghost" type="button">Take it again</button>
+      </div>
+    </section>
+
+    <form id="wish-form" class="card">
+      <h2><b class="num">2</b> <label for="wish">What do you want to build?</label></h2>
+      <input id="wish" type="text" maxlength="200" autocomplete="off" enterkeyhint="go"
+             placeholder="A dragon with big wings…">
+      <div id="ideas" class="chips">
+        <button type="button">🚀 Rocket</button>
+        <button type="button">🏠 House</button>
+        <button type="button">🤖 Robot</button>
+        <button type="button">🦆 Duck</button>
+        <button type="button">🚗 Race car</button>
+        <button type="button">🏰 Castle</button>
+      </div>
+      <p id="error" class="error" role="alert" hidden></p>
+      <button id="go" class="btn red huge" type="submit">Build it!</button>
+    </form>
+    <p class="fine">Photos are sent to the AI to spot your bricks and are not saved by this app. Not affiliated with the LEGO Group.</p>
+  </main>
+
+  <!-- Loading -->
+  <main id="loading" class="screen center" hidden>
+    <div class="stacker" aria-hidden="true"><i></i><i></i><i></i></div>
+    <h2 id="loading-text" aria-live="polite">Looking at your bricks…</h2>
+    <p class="hint">This can take a minute. Good builds need a plan!</p>
+  </main>
+
+  <!-- Parts found -->
+  <main id="parts" class="screen" hidden>
+    <header class="brand"><h1 id="plan-title"></h1></header>
+    <p id="plan-intro" class="lead"></p>
+    <p id="plan-note" class="banner" hidden></p>
+    <section class="card">
+      <h2 id="inventory-title">Bricks I found</h2>
+      <ul id="inventory" class="pieces"></ul>
+    </section>
+    <div class="row end">
+      <button id="restart-a" class="btn ghost" type="button">Start over</button>
+      <button id="start" class="btn red huge" type="button">Let’s build!</button>
+    </div>
+  </main>
+
+  <!-- Builder -->
+  <main id="build" class="screen build" hidden>
+    <div class="stage">
+      <div id="canvas" aria-label="3D picture of the model. Drag to spin it."></div>
+      <button id="home-btn" class="pill left" type="button" aria-label="Start over">✕</button>
+      <button id="reset-view" class="pill right" type="button">↺ View</button>
+      <p id="spin-hint" class="spin-hint">👆 Drag to spin</p>
+    </div>
+    <div class="panel">
+      <div id="progress" class="progress" role="progressbar" aria-valuemin="1"><i></i></div>
+      <div id="step-body">
+        <p class="step-count"><b id="step-num" class="num"></b> <span id="step-of"></span></p>
+        <p id="instruction" class="instruction" aria-live="polite"></p>
+        <ul id="step-pieces" class="pieces small"></ul>
+      </div>
+      <div id="done-body" hidden>
+        <p class="instruction">🎉 You built it! Amazing work.</p>
+        <p class="hint">Spin your model around and check it matches.</p>
+      </div>
+      <nav class="row nav">
+        <button id="prev" class="btn ghost" type="button">◀ Back</button>
+        <button id="replay" class="btn ghost" type="button">Show again</button>
+        <button id="next" class="btn red big" type="button">Next ▶</button>
+      </nav>
+    </div>
+  </main>
+
+  <div id="confetti" aria-hidden="true"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

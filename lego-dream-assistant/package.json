@@ -1,0 +1,19 @@
+{
+  "name": "lego-dream-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Snap a photo of your bricks, say what you want to build, get 3D step-by-step instructions.",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.13.0",
+    "express": "^5.3.0",
+    "three": "^0.187.0"
+  }
+}
