@@ -1,5 +1,5 @@
 import { Viewer, pieceIcon, COLOR_HEX } from './viewer.js';
-import { plannerMode, makePlan } from './planner.js';
+import { plannerMode, photoLimit, makePlan, makeSwap, applySwap } from './planner.js';
 
 const $ = (id) => document.getElementById(id);
 const screens = ['home', 'loading', 'parts', 'build'];
@@ -9,9 +9,9 @@ const show = (name) => {
 };
 
 const COLOR_NAMES = { darkgray: 'dark gray', lightblue: 'light blue' };
-const state = { image: null, blob: null, plan: null, step: 0, viewer: null, loadingTimer: 0 };
+const state = { photos: [], maxPhotos: 6, plan: null, step: 0, viewer: null, loadingTimer: 0, swapGroup: null };
 
-// ---------- Photo ----------
+// ---------- Photos ----------
 
 // Phone photos are huge; shrink before upload so the request stays small.
 async function shrink(file, max = 1568) {
@@ -26,32 +26,51 @@ async function shrink(file, max = 1568) {
   return { url: canvas.toDataURL('image/jpeg', 0.85), blob };
 }
 
-async function onPhoto(event) {
-  const file = event.target.files?.[0];
-  event.target.value = '';
-  if (!file) return;
-  try {
-    const photo = await shrink(file);
-    state.image = photo.url;
-    state.blob = photo.blob;
-    $('preview').src = state.image;
-    $('photo-empty').hidden = true;
-    $('photo-full').hidden = false;
-    setError('');
-  } catch {
-    setError('That photo did not work. Try another one.');
-  }
+function renderPhotos() {
+  $('photos').replaceChildren(...state.photos.map((photo, i) => {
+    const li = document.createElement('li');
+    const img = document.createElement('img');
+    img.src = photo.url;
+    img.alt = `Brick photo ${i + 1}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = '✕';
+    remove.setAttribute('aria-label', `Remove photo ${i + 1}`);
+    remove.addEventListener('click', () => {
+      state.photos.splice(i, 1);
+      renderPhotos();
+    });
+    li.append(img, remove);
+    return li;
+  }));
+  $('photos').hidden = state.photos.length === 0;
+  const full = state.photos.length >= state.maxPhotos;
+  $('camera-btn').classList.toggle('off', full);
+  $('gallery-btn').classList.toggle('off', full);
+  $('camera-btn').lastChild.textContent = state.photos.length ? ' 📷 Add another photo ' : ' 📷 Take a photo ';
 }
-$('camera').addEventListener('change', onPhoto);
-$('gallery').addEventListener('change', onPhoto);
-$('retake').addEventListener('click', () => {
-  state.image = null;
-  state.blob = null;
-  $('photo-empty').hidden = false;
-  $('photo-full').hidden = true;
-});
 
-// ---------- Wish ----------
+async function onPhotos(event) {
+  const files = [...(event.target.files ?? [])];
+  event.target.value = '';
+  setError('');
+  for (const file of files) {
+    if (state.photos.length >= state.maxPhotos) {
+      setError(`That’s plenty! I can look at ${state.maxPhotos} photos at a time.`);
+      break;
+    }
+    try {
+      state.photos.push(await shrink(file));
+    } catch {
+      setError('One photo did not work. Try another one.');
+    }
+  }
+  renderPhotos();
+}
+$('camera').addEventListener('change', onPhotos);
+$('gallery').addEventListener('change', onPhotos);
+
+// ---------- Wish and size ----------
 
 function setError(message) {
   $('error').textContent = message;
@@ -62,6 +81,21 @@ $('ideas').addEventListener('click', (e) => {
   if (e.target.tagName !== 'BUTTON') return;
   $('wish').value = e.target.textContent.replace(/^\S+\s/, '');
 });
+
+function markSize() {
+  for (const chip of $('sizes').children) {
+    chip.classList.toggle('on', chip.dataset.min === $('min-pieces').value && chip.dataset.max === $('max-pieces').value);
+  }
+}
+$('sizes').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  const on = e.target.classList.contains('on');
+  $('min-pieces').value = on ? '' : e.target.dataset.min;
+  $('max-pieces').value = on ? '' : e.target.dataset.max;
+  markSize();
+});
+$('min-pieces').addEventListener('input', markSize);
+$('max-pieces').addEventListener('input', markSize);
 
 const LOADING_LINES = [
   'Looking at your bricks…',
@@ -87,7 +121,12 @@ $('wish-form').addEventListener('submit', async (e) => {
   show('loading');
 
   try {
-    state.plan = await makePlan({ wish, image: state.image, blob: state.blob });
+    state.plan = await makePlan({
+      wish,
+      photos: state.photos,
+      minPieces: $('min-pieces').value,
+      maxPieces: $('max-pieces').value,
+    });
     showParts();
   } catch (err) {
     show('home');
@@ -99,18 +138,33 @@ $('wish-form').addEventListener('submit', async (e) => {
 
 // ---------- Parts ----------
 
-function pieceItem({ kind, color, sizeA, sizeB, count }) {
+const pieceName = ({ kind, color, sizeA, sizeB }) => `${COLOR_NAMES[color] ?? color} ${sizeA}×${sizeB} ${kind}`;
+const iconFor = ({ kind, color, sizeA, sizeB }) =>
+  pieceIcon({ kind, color: color in COLOR_HEX ? color : 'gray', sizeA, sizeB });
+
+// A tile for one kind of piece. With onPick it becomes a button.
+function pieceItem(group, onPick) {
   const li = document.createElement('li');
   const img = document.createElement('img');
-  img.src = pieceIcon({ kind, color: color in COLOR_HEX ? color : 'gray', sizeA, sizeB });
+  img.src = iconFor(group);
   img.alt = '';
   const label = document.createElement('span');
-  label.textContent = `${COLOR_NAMES[color] ?? color} ${sizeA}×${sizeB} ${kind}`;
-  li.append(img, label);
-  if (count > 1) {
+  label.textContent = pieceName(group);
+  if (onPick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'piece-btn';
+    button.setAttribute('aria-label', `${pieceName(group)}. Tap if you don’t have it.`);
+    button.append(img, label);
+    button.addEventListener('click', () => onPick(group));
+    li.append(button);
+  } else {
+    li.append(img, label);
+  }
+  if (group.count > 1) {
     const badge = document.createElement('b');
     badge.className = 'count';
-    badge.textContent = `×${count}`;
+    badge.textContent = `×${group.count}`;
     li.append(badge);
   }
   return li;
@@ -132,13 +186,15 @@ function groupPieces(pieces) {
 function showParts() {
   const { plan } = state;
   const buildable = plan.steps.length > 0;
+  const total = plan.steps.reduce((n, s) => n + s.pieces.length, 0);
   $('plan-title').textContent = buildable ? plan.title : 'Hmm, let’s try again';
   $('plan-intro').textContent = buildable ? plan.intro : '';
+  $('plan-count').textContent = buildable ? `This build uses ${total} pieces in ${plan.steps.length} steps.` : '';
   $('plan-note').textContent = plan.note || (buildable ? '' : 'I couldn’t find any bricks. Try a brighter photo with the bricks spread out.');
   $('plan-note').hidden = !$('plan-note').textContent;
-  $('inventory').replaceChildren(...plan.inventory.map(pieceItem));
+  $('inventory').replaceChildren(...plan.inventory.map((g) => pieceItem(g)));
   $('inventory').parentElement.hidden = plan.inventory.length === 0;
-  $('inventory-title').textContent = state.image ? 'Bricks I found' : 'Bricks for this build';
+  $('inventory-title').textContent = state.photos.length ? 'Bricks I found' : 'Bricks for this build';
   $('start').hidden = !buildable;
   show('parts');
 }
@@ -178,7 +234,7 @@ function goTo(step) {
   $('step-num').textContent = state.step + 1;
   $('step-of').textContent = `of ${total}`;
   $('instruction').textContent = current.instruction;
-  $('step-pieces').replaceChildren(...groupPieces(current.pieces).map(pieceItem));
+  $('step-pieces').replaceChildren(...groupPieces(current.pieces).map((g) => pieceItem(g, openSwap)));
   state.viewer.showStep(state.step);
 }
 
@@ -199,6 +255,47 @@ function startOver() {
 $('home-btn').addEventListener('click', startOver);
 $('restart-a').addEventListener('click', startOver);
 
+// ---------- Swap a piece ----------
+
+function setSwapBusy(busy) {
+  $('swap-go').disabled = busy;
+  $('swap-hint').disabled = busy;
+  $('swap-go').textContent = busy ? 'Looking…' : 'Find another piece';
+}
+
+function openSwap(group) {
+  state.swapGroup = group;
+  $('swap-img').src = iconFor(group);
+  $('swap-name').textContent = pieceName(group);
+  $('swap-hint').value = '';
+  $('swap-error').hidden = true;
+  setSwapBusy(false);
+  $('swap').showModal();
+}
+
+$('swap-cancel').addEventListener('click', () => $('swap').close());
+
+$('swap-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const group = state.swapGroup;
+  const stepIndex = state.step;
+  $('swap-error').hidden = true;
+  setSwapBusy(true);
+  try {
+    const swap = await makeSwap({ plan: state.plan, stepIndex, group, hint: $('swap-hint').value.trim() });
+    if (!$('swap').open || state.step !== stepIndex) return; // they gave up waiting
+    state.plan = applySwap(state.plan, stepIndex, group, swap);
+    state.viewer.load(state.plan, { keepView: true });
+    goTo(stepIndex);
+    $('swap').close();
+  } catch (err) {
+    $('swap-error').textContent = err.message;
+    $('swap-error').hidden = false;
+  } finally {
+    setSwapBusy(false);
+  }
+});
+
 function confetti() {
   const box = $('confetti');
   const colors = Object.values(COLOR_HEX).slice(0, 6);
@@ -216,4 +313,8 @@ function confetti() {
 
 plannerMode().then((mode) => {
   $('demo-banner').hidden = mode !== 'demo';
+});
+photoLimit().then((max) => {
+  state.maxPhotos = max;
+  renderPhotos();
 });

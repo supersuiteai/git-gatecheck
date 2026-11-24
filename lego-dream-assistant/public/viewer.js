@@ -171,7 +171,8 @@ export class Viewer {
     this.controls.maxDistance = this.distance * 1.8;
   }
 
-  load(plan) {
+  load(plan, { keepView = false } = {}) {
+    const offset = this.camera.position.clone().sub(this.controls.target);
     for (const s of this.steps) for (const m of s) m.material.dispose();
     this.model.clear();
     const box = new THREE.Box3();
@@ -192,7 +193,12 @@ export class Viewer {
     this.sun.target.position.copy(sphere.center);
     this.scene.add(this.sun.target);
     this.fitDistance();
-    this.resetView();
+    if (keepView) {
+      this.camera.position.copy(this.controls.target).add(offset);
+      this.controls.update();
+    } else {
+      this.resetView();
+    }
   }
 
   resetView() {

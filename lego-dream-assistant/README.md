@@ -4,6 +4,11 @@ A phone- and tablet-first web app for kids: take a photo of the bricks on the
 table, type what you want to build, and get step-by-step instructions with an
 animated 3D model you can drag to spin and look at from every angle.
 
+- Add up to six photos when the bricks don't fit in one.
+- Ask for a size, such as 100 to 200 pieces (up to 300).
+- Missing a piece mid-build? Tap it in the step's parts list, optionally say
+  what you have instead, and the step is rebuilt around a replacement.
+
 ## Run it
 
 ```bash

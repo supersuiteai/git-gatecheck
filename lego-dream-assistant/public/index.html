@@ -23,22 +23,17 @@
 
     <section class="card">
       <h2><b class="num">1</b> Snap your bricks</h2>
-      <div id="photo-empty">
-        <p class="hint">Spread your bricks out flat so I can see them all.</p>
-        <div class="row">
-          <label class="btn blue big">
-            <input id="camera" type="file" accept="image/*" capture="environment" hidden>
-            📷 Take a photo
-          </label>
-          <label class="btn ghost">
-            <input id="gallery" type="file" accept="image/*" hidden>
-            Pick a photo
-          </label>
-        </div>
-      </div>
-      <div id="photo-full" hidden>
-        <img id="preview" alt="Your bricks">
-        <button id="retake" class="btn ghost" type="button">Take it again</button>
+      <p class="hint">Spread your bricks out flat. Lots of bricks? Add more photos.</p>
+      <ul id="photos" class="photos" hidden></ul>
+      <div class="row">
+        <label class="btn blue big" id="camera-btn">
+          <input id="camera" type="file" accept="image/*" capture="environment" hidden>
+          📷 Take a photo
+        </label>
+        <label class="btn ghost" id="gallery-btn">
+          <input id="gallery" type="file" accept="image/*" multiple hidden>
+          Pick photos
+        </label>
       </div>
     </section>
 
@@ -54,6 +49,21 @@
         <button type="button">🚗 Race car</button>
         <button type="button">🏰 Castle</button>
       </div>
+      <h2><b class="num">3</b> How big should it be?</h2>
+      <div id="sizes" class="chips">
+        <button type="button" data-min="10" data-max="30">Small</button>
+        <button type="button" data-min="30" data-max="80">Medium</button>
+        <button type="button" data-min="80" data-max="150">Big</button>
+        <button type="button" data-min="150" data-max="250">Huge</button>
+      </div>
+      <div class="range">
+        <label for="min-pieces">From</label>
+        <input id="min-pieces" type="number" inputmode="numeric" min="1" max="300" placeholder="any">
+        <label for="max-pieces">to</label>
+        <input id="max-pieces" type="number" inputmode="numeric" min="1" max="300" placeholder="any">
+        <span>pieces</span>
+      </div>
+      <p class="hint">Leave these empty and I’ll pick a good size.</p>
       <p id="error" class="error" role="alert" hidden></p>
       <button id="go" class="btn red huge" type="submit">Build it!</button>
     </form>
@@ -71,6 +81,7 @@
   <main id="parts" class="screen" hidden>
     <header class="brand"><h1 id="plan-title"></h1></header>
     <p id="plan-intro" class="lead"></p>
+    <p id="plan-count" class="hint strong"></p>
     <p id="plan-note" class="banner" hidden></p>
     <section class="card">
       <h2 id="inventory-title">Bricks I found</h2>
@@ -96,6 +107,7 @@
         <p class="step-count"><b id="step-num" class="num"></b> <span id="step-of"></span></p>
         <p id="instruction" class="instruction" aria-live="polite"></p>
         <ul id="step-pieces" class="pieces small"></ul>
+        <p class="hint tiny">Don’t have a piece? Tap it and I’ll find another one.</p>
       </div>
       <div id="done-body" hidden>
         <p class="instruction">🎉 You built it! Amazing work.</p>
@@ -108,6 +120,21 @@
       </nav>
     </div>
   </main>
+
+  <!-- Ask for a different piece -->
+  <dialog id="swap" aria-labelledby="swap-title">
+    <form id="swap-form" method="dialog">
+      <h2 id="swap-title">Don’t have this one?</h2>
+      <div class="swap-piece"><img id="swap-img" alt=""><b id="swap-name"></b></div>
+      <label for="swap-hint">What do you have instead? <span class="hint">(you can skip this)</span></label>
+      <input id="swap-hint" type="text" maxlength="200" autocomplete="off" placeholder="Two small blue bricks…">
+      <p id="swap-error" class="error" role="alert" hidden></p>
+      <div class="row">
+        <button id="swap-cancel" class="btn ghost" type="button">Never mind</button>
+        <button id="swap-go" class="btn red big" type="submit">Find another piece</button>
+      </div>
+    </form>
+  </dialog>
 
   <div id="confetti" aria-hidden="true"></div>
   <script type="module" src="app.js"></script>
