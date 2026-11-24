@@ -1,4 +1,5 @@
 import { Viewer, pieceIcon, COLOR_HEX } from './viewer.js';
+import { plannerMode, makePlan } from './planner.js';
 
 const $ = (id) => document.getElementById(id);
 const screens = ['home', 'loading', 'parts', 'build'];
@@ -8,7 +9,7 @@ const show = (name) => {
 };
 
 const COLOR_NAMES = { darkgray: 'dark gray', lightblue: 'light blue' };
-const state = { image: null, plan: null, step: 0, viewer: null, loadingTimer: 0 };
+const state = { image: null, blob: null, plan: null, step: 0, viewer: null, loadingTimer: 0 };
 
 // ---------- Photo ----------
 
@@ -21,7 +22,8 @@ async function shrink(file, max = 1568) {
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
-  return canvas.toDataURL('image/jpeg', 0.85);
+  const blob = await new Promise((done) => canvas.toBlob(done, 'image/jpeg', 0.85));
+  return { url: canvas.toDataURL('image/jpeg', 0.85), blob };
 }
 
 async function onPhoto(event) {
@@ -29,7 +31,9 @@ async function onPhoto(event) {
   event.target.value = '';
   if (!file) return;
   try {
-    state.image = await shrink(file);
+    const photo = await shrink(file);
+    state.image = photo.url;
+    state.blob = photo.blob;
     $('preview').src = state.image;
     $('photo-empty').hidden = true;
     $('photo-full').hidden = false;
@@ -42,6 +46,7 @@ $('camera').addEventListener('change', onPhoto);
 $('gallery').addEventListener('change', onPhoto);
 $('retake').addEventListener('click', () => {
   state.image = null;
+  state.blob = null;
   $('photo-empty').hidden = false;
   $('photo-full').hidden = true;
 });
@@ -82,18 +87,11 @@ $('wish-form').addEventListener('submit', async (e) => {
   show('loading');
 
   try {
-    const res = await fetch('/api/build', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wish, image: state.image }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
-    state.plan = data.plan;
+    state.plan = await makePlan({ wish, image: state.image, blob: state.blob });
     showParts();
   } catch (err) {
     show('home');
-    setError(err instanceof TypeError ? 'I can’t reach the builder. Check the internet and try again.' : err.message);
+    setError(err.message);
   } finally {
     clearInterval(state.loadingTimer);
   }
@@ -165,7 +163,7 @@ function goTo(step) {
   $('done-body').hidden = !done;
   $('prev').disabled = state.step === 0;
   $('replay').hidden = done;
-  $('next').textContent = done ? 'Build something new' : state.step === total - 1 ? 'Finished! 🎉' : 'Next ▶';
+  $('next').textContent = done ? 'Build something new' : state.step === total - 1 ? 'Done! 🎉' : 'Next ▶';
   $('progress').firstElementChild.style.width = `${(Math.min(state.step + 1, total) / total) * 100}%`;
   $('progress').setAttribute('aria-valuemax', total);
   $('progress').setAttribute('aria-valuenow', Math.min(state.step + 1, total));
@@ -216,7 +214,6 @@ function confetti() {
   setTimeout(() => box.replaceChildren(), 4500);
 }
 
-fetch('/api/health')
-  .then((r) => r.json())
-  .then(({ mode }) => { $('demo-banner').hidden = mode !== 'demo'; })
-  .catch(() => {});
+plannerMode().then((mode) => {
+  $('demo-banner').hidden = mode !== 'demo';
+});

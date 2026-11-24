@@ -25,6 +25,14 @@ sample builds (robot, house, rocket) so you can try the whole flow.
 | `LEGO_MODEL` | `claude-opus-5-5` | Claude model that reads the photo and designs the build |
 | `LEGO_EFFORT` | `high` | Thinking effort; `medium` is faster and cheaper |
 
+## Publish as a Claude artifact
+
+`npm run build:artifact` writes `dist/lego-dream-assistant.html` and
+`dist/app.js` (the app with three.js bundled in). Published as a Claude
+artifact with the `sample` capability (images enabled), the page asks Claude
+directly on the viewer's own account, so no server or API key is needed.
+`public/planner.js` picks the right path at run time.
+
 ## How it works
 
 1. The browser shrinks the photo and posts it with the child's wish to
